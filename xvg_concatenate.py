@@ -186,9 +186,6 @@ def load_xvg():															#DONE
 					label_xaxis = line.split("label ")[1]
 				if f_index == 0 and "yaxis" in line and  "label " in line:
 					label_yaxis = line.split("label ")[1]
-
-		#debug
-		print f_col_to_use
 				
 		#get all data in the file
 		tmp_f_data = np.loadtxt(filename, skiprows = tmp_nb_rows_to_skip)
@@ -219,6 +216,7 @@ def load_xvg():															#DONE
 		#stock relevant data column
 		if args.log:
 			f_data[f_index] = -np.log(tmp_f_data[:, f_col_to_use + 1])
+			f_data[f_index] -= np.nanmin(f_data[f_index])
 		else:
 			f_data[f_index] = tmp_f_data[:, f_col_to_use + 1]
 
