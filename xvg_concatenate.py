@@ -123,8 +123,6 @@ if args.index != "none" and args.caption != "none":
 if args.index != "none":
 	args.index = int(args.index)
 	index_used = True
-else:
-	args.caption = args.caption #[1:-1]
 	
 ##########################################################################################
 # FUNCTIONS DEFINITIONS
@@ -173,13 +171,13 @@ def load_xvg():															#DONE
 				tmp_nb_rows_to_skip += 1
 				if "legend \"" in line:
 					try:
-						tmp_col = int(int(line.split("@ s")[1].split(" ")[0]) + 1)
+						tmp_col = int(int(line.split("@ s")[1].split(" ")[0]))
 						tmp_name = line.split("legend \"")[1][:-1]
 						if index_used == False and tmp_name == args.caption:
-							f_col_to_use = tmp_col
+							f_col_to_use = tmp_col 
 							f_col_legend_found = True
 						elif index_used and args.index == tmp_col:
-							f_col_legend = tmp_name							
+							f_col_legend = tmp_name			
 					except:
 						print "\nError: unexpected data format in line " + str(l_index) + " in file " + str(filename) + "."
 						print " -> " + str(line)
@@ -188,6 +186,9 @@ def load_xvg():															#DONE
 					label_xaxis = line.split("label ")[1]
 				if f_index == 0 and "yaxis" in line and  "label " in line:
 					label_yaxis = line.split("label ")[1]
+
+		#debug
+		print f_col_to_use
 				
 		#get all data in the file
 		tmp_f_data = np.loadtxt(filename, skiprows = tmp_nb_rows_to_skip)
