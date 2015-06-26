@@ -65,7 +65,7 @@ Other options
 
 #options
 parser.add_argument('-f', nargs='+', dest='xvgfilenames', help=argparse.SUPPRESS, required=True)
-parser.add_argument('-o', nargs=1, dest='output_file', default=["average"], help=argparse.SUPPRESS)
+parser.add_argument('-o', nargs=1, dest='output_file', default=["xvg_conc"], help=argparse.SUPPRESS)
 parser.add_argument('--index', nargs=1, dest='index', default=['none'], help=argparse.SUPPRESS)
 parser.add_argument('--caption', nargs=1, dest='caption', default=['none'], help=argparse.SUPPRESS)
 parser.add_argument('--log', dest='log', action='store_true', help=argparse.SUPPRESS)
