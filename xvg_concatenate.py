@@ -113,11 +113,11 @@ for f in args.xvgfilenames:
 		sys.exit(1)
 
 if args.index == "none" and args.caption == "none":
-	print "Error: either --index or --legend must be specified, see --help."
+	print "Error: either --index or --caption must be specified, see --help."
 	sys.exit(1)
 
 if args.index != "none" and args.caption != "none":
-	print "Error: either --index or --legend must be specified, see --help."
+	print "Error: either --index or --caption must be specified, see --help."
 	sys.exit(1)
 
 if args.index != "none":
