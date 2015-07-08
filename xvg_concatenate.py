@@ -12,7 +12,7 @@ import os.path
 #=========================================================================================
 # create parser
 #=========================================================================================
-version_nb = "0.0.1"
+version_nb = "0.0.2"
 parser = argparse.ArgumentParser(prog = 'xvg_concatenate', usage='', add_help = False, formatter_class = argparse.RawDescriptionHelpFormatter, description =\
 '''
 **********************************************
@@ -30,6 +30,9 @@ This script concatenate the specified column of several xvg files into a single 
 The column to consider can then either be specified by its index --index (0 based and
 starting from the second column - ie the first column is not taken into account) or by its
 legend via --legend.
+
+Alternatively you can use the --all flag to concatenate the whole content of xvg files. In
+this case the --index and --caption options are ignored.
 
 [ REQUIREMENTS ]
 
@@ -51,6 +54,7 @@ Option	      Default  	Description
 -----------------------------------------------------
 -f			: xvg file(s)
 -o		xvg_conc: name of outptut file
+--all		: concantenate whole content of xvg in the order they are supplied
 --caption		: caption of column to concatenate (between "quotes")
 --index			: index of column to concatenate
 --log			: take opposite of logarithm of data in column
@@ -66,6 +70,7 @@ Other options
 #options
 parser.add_argument('-f', nargs='+', dest='xvgfilenames', help=argparse.SUPPRESS, required=True)
 parser.add_argument('-o', nargs=1, dest='output_file', default=["xvg_conc"], help=argparse.SUPPRESS)
+parser.add_argument('--all', dest='all_col', action='store_true', help=argparse.SUPPRESS)
 parser.add_argument('--index', nargs=1, dest='index', default=['none'], help=argparse.SUPPRESS)
 parser.add_argument('--caption', nargs=1, dest='caption', default=['none'], help=argparse.SUPPRESS)
 parser.add_argument('--log', dest='log', action='store_true', help=argparse.SUPPRESS)
@@ -112,12 +117,12 @@ for f in args.xvgfilenames:
 		print "Error: file " + str(f) + " not found."
 		sys.exit(1)
 
-if args.index == "none" and args.caption == "none":
-	print "Error: either --index or --caption must be specified, see --help."
+if args.index == "none" and args.caption == "none" and not args.all_col:
+	print "Error: either --index, --caption or -all must be specified, see --help."
 	sys.exit(1)
 
 if args.index != "none" and args.caption != "none":
-	print "Error: either --index or --caption must be specified, see --help."
+	print "Error: --index and --caption cannot be specified together, see --help."
 	sys.exit(1)
 
 if args.index != "none":
@@ -139,18 +144,21 @@ def load_xvg():															#DONE
 	global label_xaxis
 	global label_yaxis
 	global f_data
+	global f_legend
 	global f_col_legend
-	
+	global nb_col_tot
 	f_data = {}
+	f_legend = {}
 	label_xaxis = "x axis"
 	label_yaxis = "y axis"
-	
+	nb_col_tot = 0
 	for f_index in range(0,len(args.xvgfilenames)):
 		progress = '\r -reading file ' + str(f_index+1) + '/' + str(len(args.xvgfilenames)) + '                      '  
 		sys.stdout.flush()
 		sys.stdout.write(progress)
 		filename = args.xvgfilenames[f_index]
 		tmp_nb_rows_to_skip = 0
+		f_legend[f_index] = {}
 		#get file content
 		with open(filename) as f:
 			lines = f.readlines()
@@ -163,6 +171,7 @@ def load_xvg():															#DONE
 			f_col_legend_found = False
 		
 		#determine legends and nb of lines to skip
+		c_index = 0
 		for l_index in range(0,len(lines)):
 			line = lines[l_index]
 			if line[-1] == '\n':
@@ -173,6 +182,9 @@ def load_xvg():															#DONE
 					try:
 						tmp_col = int(int(line.split("@ s")[1].split(" ")[0]))
 						tmp_name = line.split("legend \"")[1][:-1]
+						f_legend[f_index][c_index] = tmp_name
+						c_index += 1
+						nb_col_tot += 1						
 						if index_used == False and tmp_name == args.caption:
 							f_col_to_use = tmp_col 
 							f_col_legend_found = True
@@ -191,13 +203,14 @@ def load_xvg():															#DONE
 		tmp_f_data = np.loadtxt(filename, skiprows = tmp_nb_rows_to_skip)
 									
 		#check the column was/can be found
-		if index_used:
-			if not f_col_to_use < (np.shape(tmp_f_data)[1] - 1):
-				print "\nError: --index set to " + str(f_col_to_use) + " but file " + str(filename) + " only contains " + str(np.shape(tmp_f_data)[1] - 1) + " data columns (index should be 0 based)."
+		if not args.all_col:
+			if index_used:
+				if not f_col_to_use < (np.shape(tmp_f_data)[1] - 1):
+					print "\nError: --index set to " + str(f_col_to_use) + " but file " + str(filename) + " only contains " + str(np.shape(tmp_f_data)[1] - 1) + " data columns (index should be 0 based)."
+					sys.exit(1)
+			elif not f_col_legend_found:
+				print "\nError: no column with caption \"" + str(f_col_legend) + "\" could be found in " + str(filename) + "."
 				sys.exit(1)
-		elif not f_col_legend_found:
-			print "\nError: no column with caption \"" + str(f_col_legend) + "\" could be found in " + str(filename) + "."
-			sys.exit(1)
 		
 		#check that each file has the same number of rows
 		if f_index == 0:
@@ -214,11 +227,14 @@ def load_xvg():															#DONE
 			sys.exit(1)
 
 		#stock relevant data column
-		if args.log:
-			f_data[f_index] = -np.log(tmp_f_data[:, f_col_to_use + 1])
-			f_data[f_index] -= np.nanmin(f_data[f_index])
+		if args.all_col:
+			f_data[f_index] = tmp_f_data[:,1:]
 		else:
-			f_data[f_index] = tmp_f_data[:, f_col_to_use + 1]
+			if args.log:
+				f_data[f_index] = -np.log(tmp_f_data[:, f_col_to_use + 1])
+				f_data[f_index] -= np.nanmin(f_data[f_index])
+			else:
+				f_data[f_index] = tmp_f_data[:, f_col_to_use + 1]
 
 			
 	return
@@ -227,7 +243,7 @@ def load_xvg():															#DONE
 # outputs
 #=========================================================================================
 
-def write_xvg():														#DONE
+def write_xvg():
 
 	#open files
 	filename_xvg = os.getcwd() + '/' + str(args.output_file) + '.xvg'
@@ -263,6 +279,45 @@ def write_xvg():														#DONE
 	output_xvg.close()	
 	
 	return
+def write_xvg_all():
+
+	#open files
+	filename_xvg = os.getcwd() + '/' + str(args.output_file) + '.xvg'
+	output_xvg = open(filename_xvg, 'w')
+	
+	#general header
+	output_xvg.write("# [concatenated xvg - written by xvg_concatenate v" + str(version_nb) + "]\n")
+	tmp_files = ""
+	for f in args.xvgfilenames:
+		tmp_files += "," + str(f)
+	output_xvg.write("# - files: " + str(tmp_files[1:]) + "\n")
+	
+	#xvg metadata
+	output_xvg.write("@ xaxis label " + str(label_xaxis) + "\n")
+	output_xvg.write("@ yaxis label " + str(label_yaxis) + "\n")
+	output_xvg.write("@ autoscale ONREAD xaxes\n")
+	output_xvg.write("@ TYPE XY\n")
+	output_xvg.write("@ view 0.15, 0.15, 0.95, 0.85\n")
+	output_xvg.write("@ legend on\n")
+	output_xvg.write("@ legend box on\n")
+	output_xvg.write("@ legend loctype view\n")
+	output_xvg.write("@ legend 0.98, 0.8\n")
+	output_xvg.write("@ legend length " + str(nb_col_tot) + "\n")
+	c_index = 0
+	for f_index in range(0, len(args.xvgfilenames)):
+		for c in range(0, len(f_legend[f_index].values())):
+			output_xvg.write("@ s" + str(c_index) + " legend \"" + str(args.xvgfilenames[f_index][:-4]) + " ("+ str(f_legend[f_index][c]) + ")\"\n")
+			c_index += 1
+	#data
+	for r_index in range(0, nb_rows):
+		results = str(first_col[r_index])
+		for f_index in range(0, len(args.xvgfilenames)):
+			for c_index in range(0, len(f_legend[f_index].values())):
+				results += "	" + str(f_data[f_index][r_index, c_index])
+		output_xvg.write(results + "\n")		
+	output_xvg.close()	
+	
+	return
 
 ##########################################################################################
 # MAIN
@@ -272,7 +327,10 @@ print "\nReading files..."
 load_xvg()
 
 print "\n\nWriting concatenated file..."
-write_xvg()
+if args.all_col:
+	write_xvg_all()
+else:
+	write_xvg()
 
 #=========================================================================================
 # exit
